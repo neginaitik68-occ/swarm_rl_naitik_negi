@@ -1,0 +1,8 @@
+# SwarmRL Reward Configuration
+# Initial values for experimentation
+
+rewards:
+  coverage_reward: 1.0
+  collision_penalty: -100.0
+  boundary_penalty: -5.0
+  default_reward: 0.0

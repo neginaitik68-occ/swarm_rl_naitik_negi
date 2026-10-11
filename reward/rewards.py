@@ -1,58 +1,103 @@
 """
 SwarmRL Reward Engineering Module
 
-Initial reward function for a drone swarm searching
+Calculates rewards for individual drones searching
 a simulated disaster zone.
 """
-#initial reward values
 
-COVERAGE_REWARD = 1.0
-COLLISION_PENALTY = -100.0
-BOUNDARY_PENALTY = -5.0
+from pathlib import Path
+
+import yaml
+
+
+# Locate the configuration file relative to this Python file.
+CONFIG_PATH = Path(__file__).with_name("reward_config.yaml")
+
+
+def load_reward_config():
+    """
+    Load reward values from reward_config.yaml.
+
+    Returns
+    -------
+    dict
+        Reward configuration dictionary.
+    """
+    with CONFIG_PATH.open("r", encoding="utf-8") as file:
+        config = yaml.safe_load(file)
+
+    if not isinstance(config, dict):
+        raise ValueError("Reward configuration must be a YAML mapping.")
+
+    rewards = config.get("rewards")
+
+    if not isinstance(rewards, dict):
+        raise ValueError("Configuration must contain a 'rewards' mapping.")
+
+    required_keys = {
+        "coverage_reward",
+        "collision_penalty",
+        "boundary_penalty",
+        "default_reward",
+    }
+
+    missing_keys = required_keys - rewards.keys()
+
+    if missing_keys:
+        raise ValueError(
+            f"Missing reward configuration keys: {sorted(missing_keys)}"
+        )
+
+    for key in required_keys:
+        value = rewards[key]
+
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"Reward value '{key}' must be numeric.")
+
+    if rewards["collision_penalty"] > 0:
+        raise ValueError("Collision penalty must be zero or negative.")
+
+    if rewards["boundary_penalty"] > 0:
+        raise ValueError("Boundary penalty must be zero or negative.")
+
+    return rewards
+
 
 def calculate_reward(
-        discovered_new_cell = False,
-        collision = False,
-        boundary_violation=False
+    discovered_new_cell=False,
+    collision=False,
+    boundary_violation=False,
 ):
-
     """
-    Calculate the reward for a single drone's time step.
+    Calculate a drone's reward for one time step.
 
     Parameters
     ----------
     discovered_new_cell : bool
-        True if the drone discovers a previously unexplored cell.
+        Whether the drone discovered a previously unexplored cell.
 
     collision : bool
-        True if the drone experiences a collision.
+        Whether a collision occurred.
 
     boundary_violation : bool
-        True if the drone violates the permitted boundary.
+        Whether the drone violated the permitted boundary.
 
     Returns
     -------
     float
-        The total reward for the time step.
+        Total reward for the time step.
     """
+    config = load_reward_config()
 
-
-    reward = 0.0
-
-    #reward exploration
+    reward = config["default_reward"]
 
     if discovered_new_cell:
-        reward += COVERAGE_REWARD
-
-    #penalize collision
+        reward += config["coverage_reward"]
 
     if collision:
-        reward += COLLISION_PENALTY
-
-
-    #penalize boundary violations
+        reward += config["collision_penalty"]
 
     if boundary_violation:
-        reward += BOUNDARY_PENALTY
+        reward += config["boundary_penalty"]
 
-    return reward
+    return float(reward)
